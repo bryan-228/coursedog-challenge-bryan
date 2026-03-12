@@ -16,7 +16,7 @@ export class LoginPage {
     this.submitButton = page.locator('#submitLoginBtn');
     this.errorMessage = page.locator('#message.alert-danger');
     this.logoutLink = page.locator('#logout');
-    this.homeLink = page.locator('#home');
+    this.homeLink = page.getByRole('link', { name: 'Home' });
   }
 
   async goto() {

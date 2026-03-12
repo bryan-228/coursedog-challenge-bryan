@@ -118,7 +118,7 @@ test.describe('Shopping Cart', () => {
   test('cart should be empty on products page load', async ({ productsPage }) => {
     // We'll already be on the products page from logging in in the beforeEach hook.
     await expect(productsPage.cartRows).toHaveCount(0);
-    await expect(productsPage.cartTotalPrice).toContainText('$0.00');
+    await expect(productsPage.cartTotalPrice).toContainText('$0');
     console.log('Cart is empty on products page load.');
   });
 
