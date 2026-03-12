@@ -1,0 +1,29 @@
+{
+  "name": "coursedog-challenge-bryan",
+  "version": "1.0.0",
+  "description": "Interview challenge for ecommerce and file upload practice app",
+  "scripts": {
+    "test": "npx playwright test",
+    "test:headed": "npx playwright test --headed",
+    "test:ui": "npx playwright test --ui",
+    "test:debug": "npx playwright test --debug",
+    "report": "npx playwright show-report"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bryan-228/coursedog-challenge-bryan.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/bryan-228/coursedog-challenge-bryan/issues"
+  },
+  "homepage": "https://github.com/bryan-228/coursedog-challenge-bryan#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@types/node": "^25.4.0",
+    "dotenv": "^17.3.1",
+    "typescript": "^5.9.3"
+  }
+}

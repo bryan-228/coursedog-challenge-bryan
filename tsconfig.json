@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "types": ["node"]
+  },
+
+  // This is to make sure TypeScript knows about the files in the tests, pages, fixtures, and config folders.
+  // If you ever add more folders that will contain TypeScript files, make sure to add them to this list.
+  // This is all so Type checking doesn't take forever by checking stuff like node modules and other non-TS files.
+  "include": ["tests/**/*.ts", "pages/**/*.ts", "fixtures/**/*.ts", "config/**/*.ts"]
+}
