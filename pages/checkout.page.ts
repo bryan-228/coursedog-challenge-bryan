@@ -25,7 +25,7 @@ export class CheckoutPage {
     this.cityInput = page.locator('input[name="city"]');
     this.countryDropdown = page.locator('#countries_dropdown_menu');
     this.submitOrderButton = page.locator('#submitOrderBtn');
-    this.orderMessage = page.locator('#message');
+    this.orderMessage = page.locator('#message:not(.alert-danger)');
   }
 
   async fillShippingDetails(details: ShippingDetails) {

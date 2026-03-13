@@ -101,4 +101,4 @@ test.describe('Security: Price Tampering via Network Interception', () => {
   });
 });
 
-//TO DO: add SQL injection / XSS in login fields (boundary) attack
+// add SQL injection / XSS in login fields (boundary) attack

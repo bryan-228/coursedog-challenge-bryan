@@ -26,6 +26,9 @@ export default defineConfig({
   // This is to run tests on a single worker.
   workers: process.env.CI ? 1 : undefined,
 
+  // Maximum time one test can run (default 30s). E2E against real site will need longer than this.
+  timeout: 90_000,
+
   // This is to report the test results in an HTML file.
   reporter: 'html',
 

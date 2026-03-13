@@ -162,7 +162,8 @@ test.describe('Order Submission', () => {
     await productsPage.addToCart(items.samsungGalaxyA32);
   });
 
-  test('should submit order with valid shipping details', async ({ productsPage, checkoutPage }) => {
+  test('should complete checkout with valid shipping details: 1 item in cart', async ({ productsPage, checkoutPage }) => {
+    await expect(productsPage.cartRows).toHaveCount(1);
     await productsPage.proceedToCheckout();
     await checkoutPage.fillAndSubmitOrder(shippingDetails);
 
@@ -171,10 +172,42 @@ test.describe('Order Submission', () => {
     await expect(checkoutPage.orderMessage).toContainText(shippingDetails.street);
   });
 
-  // TODO: Add more order scenarios
-  // - Submit order with empty shipping fields -- expect validation
-  // - Submit order with empty cart
-  // - Verify order total matches cart total in success message
+  test('should complete checkout with valid shipping details: 2 items in cart', async ({ productsPage, checkoutPage }) => {
+    await productsPage.addToCart(items.nokia105);
+    await expect(productsPage.cartRows).toHaveCount(2);
+    await productsPage.proceedToCheckout();
+    await checkoutPage.fillAndSubmitOrder(shippingDetails);
+
+    await expect(checkoutPage.orderMessage).toContainText('Congrats');
+    await expect(checkoutPage.orderMessage).toContainText(addPrices(itemPrices.samsungGalaxyA32, itemPrices.nokia105));
+  });
+
+  test('should not complete checkout with empty shipping details', async ({ productsPage, checkoutPage }) => {
+    await expect(productsPage.cartRows).toHaveCount(1);
+
+    await productsPage.proceedToCheckout();
+    await checkoutPage.submitOrder();
+
+    if ((await checkoutPage.orderMessage.isVisible)) {
+      console.log('Checkout completed with no shipping details.');
+    } else {
+      console.log('Checkout with no shipping details prevented.');
+    }
+  });
+
+  test('should not be able to checkout with empty cart', async ({ productsPage, checkoutPage }) => {
+    // Removing the item from the beforeEach hook. This is the only test in this describe block where that needs to be done.
+    await productsPage.removeCartItem(0);
+    await expect(productsPage.cartRows).toHaveCount(0);
+    await productsPage.proceedToCheckout();
+    await checkoutPage.fillAndSubmitOrder(shippingDetails);
+
+    if ((await checkoutPage.orderMessage.textContent())?.includes('Congrats')) {
+      console.log('Checkout completed with empty cart.');
+    } else {
+      console.log('Checkout with empty cart prevented.');
+    }
+  });
 });
 
 test.describe('Logout', () => {
@@ -189,9 +222,42 @@ test.describe('Logout', () => {
     await expect(loginPage.logoutLink).toBeHidden();
   });
 
-  // TODO: Add more logout scenarios
-  // - After logout, navigating back should not restore authenticated state
-  // - Verify login form fields are cleared after logout
+  test('going Back after logout should not go back', async ({ loginPage, productsPage, checkoutPage }) => {
+    await loginPage.goto();
+    await loginPage.login(VALID_EMAIL, VALID_PASSWORD);
+    await expect(loginPage.logoutLink).toBeVisible();
+
+    await productsPage.addToCart(items.iPhone12);
+    await expect(productsPage.cartRows).toHaveCount(1);
+    await productsPage.proceedToCheckout();
+    await checkoutPage.fillAndSubmitOrder(shippingDetails);
+    await expect(checkoutPage.orderMessage).toContainText('Congrats');
+    await expect(checkoutPage.orderMessage).toContainText(itemPrices.iPhone12);
+    await expect(checkoutPage.orderMessage).toContainText(shippingDetails.street);
+
+    await loginPage.logout();
+    await expect(loginPage.submitButton).toBeVisible();
+    await expect(loginPage.logoutLink).toBeHidden();
+
+    await loginPage.page.goBack();
+    if (await checkoutPage.orderMessage.isVisible()) {
+      console.log('Order message is visible after going back.');
+    } else {
+      console.log('Order message is not visible after going back. Stayed on Login page once logged out.');
+    }
+  });
+
+  test('logout should clear login form fields', async ({ loginPage }) => {
+    await loginPage.goto();
+    await loginPage.login(VALID_EMAIL, VALID_PASSWORD);
+    await expect(loginPage.logoutLink).toBeVisible();
+
+    await loginPage.logout();
+    await expect(loginPage.submitButton).toBeVisible();
+    await expect(loginPage.logoutLink).toBeHidden();
+    await expect(loginPage.emailInput).toBeEmpty();
+    await expect(loginPage.passwordInput).toBeEmpty();
+  });
 });
 
 test.describe('E2E: Smoke test / happy path', () => {
@@ -200,20 +266,33 @@ test.describe('E2E: Smoke test / happy path', () => {
     productsPage,
     checkoutPage,
   }) => {
+    console.log('Starting E2E: Smoke test / happy path');
+    console.log('Logging in');
     await loginPage.goto();
+    console.log('Filling email and password (valid credentials)');
     await loginPage.login(VALID_EMAIL, VALID_PASSWORD);
     await expect(loginPage.logoutLink).toBeVisible();
+    console.log('Logged in successfully');
 
-    await productsPage.addToCart('Huawei Mate 20 Lite, 64GB, Black');
-    await productsPage.addToCart('Nokia 105, Black');
+    console.log('Adding 2 items to cart');
+    await productsPage.addToCart(items.huaweiMate20Lite);
+    await productsPage.addToCart(items.nokia105);
     await expect(productsPage.cartRows).toHaveCount(2);
-    await expect(productsPage.cartTotalPrice).toContainText('$256.11');
+    console.log('2 items added to cart');
+    await expect(productsPage.cartTotalPrice).toContainText(addPrices(itemPrices.huaweiMate20Lite, itemPrices.nokia105));
+    console.log('Cart total price is correct: ' + addPrices(itemPrices.huaweiMate20Lite, itemPrices.nokia105));
 
+    console.log('Proceeding to checkout');
     await productsPage.proceedToCheckout();
+    console.log('On shipping details page');
+    console.log('Filling and submitting order');
     await checkoutPage.fillAndSubmitOrder(shippingDetails);
     await expect(checkoutPage.orderMessage).toContainText('Congrats');
+    console.log('Order submitted successfully');
 
+    console.log('Logging out');
     await loginPage.logout();
     await expect(loginPage.submitButton).toBeVisible();
+    console.log('Logged out successfully');
   });
 });

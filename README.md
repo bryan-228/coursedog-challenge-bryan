@@ -1,12 +1,23 @@
 Coursedog QA Automation Challenge
 
-<!-- NOTE: I have written comments in here as I do when others may have involvement with automation I write (so, all the time). They are purposely verbose and are intended to explain what I did and why, framed in a theoretical "anyone on the team can read this now or in the future and understand why this is the way it is" light. 
+I have written comments in here as I normally do. They are purposely verbose and are intended to explain what I did and why, framed in a theoretical "anyone on the team can read this now or in the future and understand why this is the way it is" light. 
 I have also added comments to all files in the project where it felt relevant.
--->
+
+Another Note: For the sake of not going overboard on time, I added console logging (in a way that I actually do in a real E2E scenario) ONLY in the "E2E: Smoke test / happy path" test in auth-ecommerce.spec.ts. 
+
+I chose the tests that are present because: 
+1. Critical path / happy path scenarios were obvious
+2. Many edge cases presented themselves 
+3. Many others (negative tests, security tests) came to mind as well from previous experience.
+
+
+
+
+
 
 
 This document covers everything one needs to know to get started running and adding to the E2E test automation for the QA Practice app at https://qa-practice.netlify.app. 
--(3/11/2026) Current automation covers the e-commerce auth/order flow and file upload functionalities, as well as edge cases in those 2 areas. Additionally, some areas of security concern are covered.
+-(3/12/2026) Current automation covers the e-commerce auth/order flow and file upload functionalities, as well as edge cases in those 2 areas. Additionally, some areas of security concern are covered.
 
 
 Framework and Versions in tools used:
@@ -34,10 +45,10 @@ npm install
 # the repo (and therefore having access to package.json, among everything else), you
 # do not need to separately install Playwright, since that will be included in this command.
 
-# 2. Install Playwright's Chromium browser. We could set it to use all
-# browsers by removing 'chromium' from the command, but that's not necessary 
-# for this project right now.
+# 2. Install Playwright's Chromium browser. 
 npx playwright install chromium
+# We could set it to use all browsers by removing 'chromium' from the command, 
+# but that's not necessary for this project right now.
 ```
 
 
@@ -70,18 +81,26 @@ Test Structure Overview
 
 ```
 ├── fixtures/
-│   └── index.ts              # Custom Playwright fixtures — extends `test` with page objects
+│   └── index.ts                 # Custom Playwright fixtures — extends `test` with page objects
 ├── pages/
-│   ├── login.page.ts         # Login form page object
-│   ├── products.page.ts      # Product catalog & shopping cart page object
-│   ├── checkout.page.ts      # Shipping details & order submission page object
-│   └── file-upload.page.ts   # File upload page object
+│   ├── login.page.ts            # Login form page object
+│   ├── products.page.ts         # Product catalog & shopping cart page object
+│   ├── checkout.page.ts         # Shipping details & order submission page object
+│   └── file-upload.page.ts      # File upload page object
 ├── tests/
-│   ├── auth-ecommerce.spec.ts  # E-commerce flow: auth, cart, order, logout
-│   └── file-upload.spec.ts     # File upload flow
+│   ├── auth-ecommerce.spec.ts   # E-commerce flow: auth, cart, order, logout, edge cases
+│   ├── file-upload.spec.ts      # File upload flow and edge cases
+│   └── security.spec.ts         # Network interception & price-tampering security tests
 ├── test-data/
-│   └── sample-upload.txt     # Sample file used in upload tests
-└── playwright.config.ts      # Playwright configuration
+│   ├── sample-upload.txt        # Sample file used in upload tests
+│   ├── commonObjects.ts         # Shared test data (item names, prices, helpers)
+│   └── formDetails.ts           # Shared shipping form data
+├── config/
+│   └── env.config.ts            # Typed access to environment variables (credentials, etc.)
+├── .github/
+│   └── workflows/
+│       └── e2e.yml              # GitHub Actions workflow to run Playwright tests in CI
+└── playwright.config.ts         # Playwright configuration
 ```
 
 
@@ -95,7 +114,7 @@ Architecture
 
 **Test Isolation**: Each test runs in a fresh browser context with no shared state. This is because each test.describe block starts a clean new browser instance. In some cases, you'll want multiple tests in the same describe block, but in our case, we don't (this is because no data created during any test run needs to stay persistent within the test itself to be acted upon by later steps.)
 
-**Reusable Test Date**: Currently there is only one area that needed it (shipping info), but I created `test-data/formDetails.ts` as a container for shared simple data. In our case, `test/auth-ecommerce.spec.ts` and `tests/security.spec.ts` both fill out the Shipping Details form, so their data is abstracted to the formDetails.ts page.
+**Reusable Test Data**: Currently there is only one area that needed it (shipping info), but I created `test-data/formDetails.ts` as a container for shared simple data. In our case, `test/auth-ecommerce.spec.ts` and `tests/security.spec.ts` both fill out the Shipping Details form, so their data is abstracted to the formDetails.ts page.
 
 
 (COME AND UPDATE THIS AFTER MANUALLY MESSING WITH TESTS)
@@ -104,16 +123,22 @@ Test Coverage
 **E-commerce Auth and Order Flow** 
 (Test file: `auth-ecommerce.spec.ts`)
 - Login with valid credentials
-- Login with invalid creds (should get error message)
-- Add items to cart and verify amounts
-- Add multiple items to cart
-- Submit order with shipping details and verify confirmation
-- Logout and verify return to login screen
+- Login with invalid credentials (error message validation and negative cases)
+- Add items to cart and verify item names, individual prices, and cart total (including helper-based totals)
+- Add multiple different items to the cart and validate combined total
+- Remove items, update quantities (including 0), and verify cart recalculations and empty-cart behavior
+- Submit order with valid shipping details and verify confirmation content
+- Attempt order submission with missing/empty shipping details and with an empty cart
+- Logout and verify return to login screen and post-logout navigation behavior
 - Full end-to-end happy path (login → cart → checkout → logout)
 
 **File Upload** 
 (Test file: `file-upload.spec.ts`)
 - Upload a text file and verify success message
+- Additional edge cases: 
+    - Different file types
+    - No file selected
+    - Negative/invalid flows around the upload button
 
 **Security**
 (Test file: `security.spec.ts`)
