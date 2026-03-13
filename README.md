@@ -1,23 +1,22 @@
 Coursedog QA Automation Challenge
 
-I have written comments in here as I normally do. They are purposely verbose and are intended to explain what I did and why, framed in a theoretical "anyone on the team can read this now or in the future and understand why this is the way it is" light. 
-I have also added comments to all files in the project where it felt relevant.
+I have written comments across the project as I normally do. They are purposely verbose and are intended to explain what I did and why.
 
-Another Note: For the sake of not going overboard on time, I added console logging (in a way that I actually do in a real E2E scenario) ONLY in the "E2E: Smoke test / happy path" test in auth-ecommerce.spec.ts. 
+I've also added console logging to the test specs and a Github Actions yml for pipeline usage. 
 
 I chose the tests that are present because: 
-1. Critical path / happy path scenarios were obvious
-2. Many edge cases presented themselves 
+1. Critical path / happy path scenarios were largely defined by the challenge already
+2. Many edge cases presented themselves immediately
 3. Many others (negative tests, security tests) came to mind as well from previous experience.
 
 
-
-
+All aspects of the project are intended to be clear and maintainable.
+This starts with the config-level files, then the env and env.config files, and fixtures, which are all explained further in the "Architecture" section below.
 
 
 
 This document covers everything one needs to know to get started running and adding to the E2E test automation for the QA Practice app at https://qa-practice.netlify.app. 
--(3/12/2026) Current automation covers the e-commerce auth/order flow and file upload functionalities, as well as edge cases in those 2 areas. Additionally, some areas of security concern are covered.
+-(3/13/2026) Current automation covers the e-commerce auth/order flow and file upload functionalities, as well as edge cases in those 2 areas. Additionally, some areas of security concern are covered.
 
 
 Framework and Versions in tools used:
@@ -77,48 +76,58 @@ npx playwright show-report
 ```
 
 Test Structure Overview 
-(I had Claude Opus generate this since it does a good job making these charts)
 
 ```
+├── .github/
+│   └── workflows/
+│       └── e2e.yml              # GitHub Actions: run Playwright tests in CI
+├── config/
+│   └── env.config.ts            # Typed env vars (e.g. login credentials). Keeps ENV creds out of repo!!
 ├── fixtures/
-│   └── index.ts                 # Custom Playwright fixtures — extends `test` with page objects
+│   └── index.ts                 # Custom fixtures — injects page objects into tests
 ├── pages/
 │   ├── login.page.ts            # Login form page object
 │   ├── products.page.ts         # Product catalog & shopping cart page object
 │   ├── checkout.page.ts         # Shipping details & order submission page object
 │   └── file-upload.page.ts      # File upload page object
-├── tests/
-│   ├── auth-ecommerce.spec.ts   # E-commerce flow: auth, cart, order, logout, edge cases
-│   ├── file-upload.spec.ts      # File upload flow and edge cases
-│   └── security.spec.ts         # Network interception & price-tampering security tests
 ├── test-data/
-│   ├── sample-upload.txt        # Sample file used in upload tests
-│   ├── commonObjects.ts         # Shared test data (item names, prices, helpers)
-│   └── formDetails.ts           # Shared shipping form data
-├── config/
-│   └── env.config.ts            # Typed access to environment variables (credentials, etc.)
-├── .github/
-│   └── workflows/
-│       └── e2e.yml              # GitHub Actions workflow to run Playwright tests in CI
-└── playwright.config.ts         # Playwright configuration
+│   ├── commonObjects.ts         # Shared data (items, itemPrices, shippingDetails)
+│   ├── helpers.ts               # Helper functions (e.g. addPrices for cart totals)
+│   ├── sample-upload.txt        # Sample TXT file for upload tests
+│   ├── sample-upload-%$.txt     # Special characters in filename
+│   ├── sample-upload-empty.txt  # Empty file
+│   ├── sample-upload-no-extension         # Sample file with no file extension
+│   ├── sample-upload-wrong-extension.js   # Sample file with incorrected extension
+│   ├── sample-upload.JPG        # Sample image
+│   ├── sample-upload.csv        # Sample spreadsheet
+│   ├── sample-upload.pdf        # Sample PDF
+│   ├── sample-upload.png        # Another sample image
+│   └── sample-upload.wav        # Sample audio file (doubles as a large file)
+├── tests/
+│   ├── auth-ecommerce.spec.ts   # E-commerce: auth, cart, order, logout, edge cases, SQLi
+│   ├── file-upload.spec.ts      # File upload flow and edge cases
+│   └── security.spec.ts         # Price tampering via network interception
+├── .env.example                 # Template for env vars (copy to .env, not committed)
+├── package.json
+├── playwright.config.ts         # Playwright config (timeouts, baseURL, etc.)
+└── tsconfig.json                
 ```
 
 
 
 Architecture
 
-**Page Object Model**: I've created a dedicated class in the `pages/` folder for each page of the app. This is where I stored the locators I asked Opus to scan for. Tests never use raw selectors, and there are actions store in here for maximum modularity and extensibility.
+**Page Object Model**: I've created a dedicated class in the `pages/` folder for each page of the app. This is where I stored the locators so tests never use raw selectors. There are actions store in here for maximum modularity and extensibility.
 
-**Custom Fixtures integrating our page object model**: `fixtures/index.ts` extends Playwright's built-in `test` object with the page object instances mentioned above (`loginPage`, `productsPage`, `checkoutPage`, `fileUploadPage`). Every test spec imports `test` and `expect` directly `../fixtures` instead of `@playwright/test`. When you add more page object files in the future (such as making tests beyond the ecommerce and file upload areas of the app), make sure to add those to `fixtures/index.ts` as well.
+**Custom Fixtures integrating our page object model**: `fixtures/index.ts` extends Playwright's built-in `test` object with the page object instances mentioned above (`loginPage`, `productsPage`, `checkoutPage`, `fileUploadPage`). Every test spec imports `test` and `expect` directly from `../fixtures` instead of `@playwright/test`. When more page object files are added in the future (such as making tests beyond the ecommerce and file upload areas of the app), these need to be added to `fixtures/index.ts` as well.
 "Page" and "Request" are a few examples of built-in Playwright fixtures. We are adding our own here. When certain actions are going to be commonly used throughout all/most tests, fixtures function as essentially a custom command to maximally reduce code duplciation (and therefore further modularity and maintainability).
 
 **Test Isolation**: Each test runs in a fresh browser context with no shared state. This is because each test.describe block starts a clean new browser instance. In some cases, you'll want multiple tests in the same describe block, but in our case, we don't (this is because no data created during any test run needs to stay persistent within the test itself to be acted upon by later steps.)
 
-**Reusable Test Data**: Currently there is only one area that needed it (shipping info), but I created `test-data/formDetails.ts` as a container for shared simple data. In our case, `test/auth-ecommerce.spec.ts` and `tests/security.spec.ts` both fill out the Shipping Details form, so their data is abstracted to the formDetails.ts page.
+**Reusable Test Data**: `test-data/commonObjects.ts` Is a container for shared simple data. In our case, `test/auth-ecommerce.spec.ts` and `tests/security.spec.ts` both fill out the Shipping Details form, so their data is abstracted to the `commonObjects.ts` page. Product names and Prices are also given names here.
 
 
-(COME AND UPDATE THIS AFTER MANUALLY MESSING WITH TESTS)
-Test Coverage
+TEST COVERAGE 
 
 **E-commerce Auth and Order Flow** 
 (Test file: `auth-ecommerce.spec.ts`)
@@ -134,23 +143,22 @@ Test Coverage
 
 **File Upload** 
 (Test file: `file-upload.spec.ts`)
-- Upload a text file and verify success message
+- Upload a variety of file types and verify success message
 - Additional edge cases: 
-    - Different file types
     - No file selected
-    - Negative/invalid flows around the upload button
+    - File types that should not be allowed (special characters in file name, wrong extension, no extension)
 
 **Security**
 (Test file: `security.spec.ts`)
-- Intercept network response while adding item to cart, modify value to $0.00
-- Intercept network response while adding item to cart, modify value to $-50.00
+- Intercept network response while adding item to cart, modify value to $0.00 (currently vulnerable)
+- Intercept network response while adding item to cart, modify value to $-50.00 (currently vulnerable)
+- Attempt SQL injection on Login page (currently not vulnerable)
 
-
+------------------------------------------------------------------------------------------------------------------------------------
 
 ADDITIONAL NOTES
 
 *Functional Tests*
-Ecommerce portion:
 
 1.
 Console warning "Form submission canceled because the form is not connected" appears on order submission / checkout (once Checkout button is clicked and order is confirmed). 
@@ -161,8 +169,10 @@ Given that this is a 3rd-party practice site, we can't really do anything about 
 There is no Back button once on the Shipping Details page. Browser Back is also not an option in this case.
 This forces user to Log Out to start over / select different items. This is something I would absolutely manually test for (and did, while scoping out what would need automated tests) but purposely did NOT write an automated test for because it seems to be a feature miss. 
 
+3.
+There are a few tests that have an if/else statement at the end. These are for scenarios that are currently behaving in a way I would define as buggy. This is to demonstrate that this is something I would write a test about in a real scenario *once the issue was fixed* , but I didn't want the tests to fail here. So, instead, they just log the error in a console log and move on. In a working scenario, I would not write automated tests for a known-bug behavior until a fix was implemented, and these tests are simply to demonstrate that I took note of these areas' behavior.
+
 *Security Tests*
-Ecommerce portion: 
 
 1. 
 The ecommerce area calculates checkout values client-side in JS. There is no server-side validation (prices, totals, and order submission). This allows network call interception to occur and easily change the value of any items in the cart to any dollar amount, even negative values. Such vulnerabilities can be found manually with tools like Burpsuite, but Playwright has network interception capabilities as well. `tests/security.spec.ts` exploits this both with a $0 amount and a negative $ amount.
